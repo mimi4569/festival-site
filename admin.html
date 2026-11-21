@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>축제 관리자</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="style.css" />
+<style>
+  .admin-wrap { max-width: 1200px; margin: 96px auto 48px; padding: 0 40px; }
+  .admin-login { max-width: 420px; margin: 18vh auto; padding: 32px; background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 12px; }
+  .admin-login h1 { font-family: "Cormorant Garamond", serif; font-size: 32px; font-weight: 400; letter-spacing: -0.5px; margin-bottom: 16px; color: var(--ink); }
+  .admin-tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+  .admin-tab { padding: 8px 16px; border: 1px solid var(--hairline); border-radius: 8px; background: var(--canvas); color: var(--ink); cursor: pointer; font-size: 14px; font-weight: 500; }
+  .admin-tab.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+  .admin-panel { display: none; }
+  .admin-panel.active { display: block; }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .admin-table th, .admin-table td { padding: 10px 12px; border-bottom: 1px solid var(--hairline-soft); text-align: left; vertical-align: top; }
+  .admin-table th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: none; letter-spacing: 0; }
+  .admin-table tr:hover { background: var(--surface-soft); }
+  .status-select { padding: 4px 8px; border: 1px solid var(--hairline); border-radius: 6px; font-size: 13px; }
+  .admin-stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .admin-stat { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 8px; padding: 16px 20px; min-width: 140px; }
+  .admin-stat .n { font-family: "Cormorant Garamond", serif; font-size: 28px; font-weight: 400; color: var(--ink); }
+  .admin-stat .l { font-size: 12px; color: var(--muted); }
+  .admin-empty { color: var(--muted); padding: 24px 0; }
+  .admin-refresh { margin-bottom: 16px; }
+  @media (max-width: 768px) { .admin-wrap { padding: 0 20px; } .admin-table { font-size: 12px; } }
+</style>
+</head>
+<body>
+  <nav>
+    <div class="logo">축제 관리자</div>
+    <ul>
+      <li><a href="index.html">사이트로</a></li>
+    </ul>
+  </nav>
+
+  <div id="login-screen" class="admin-login">
+    <h1>관리자 로그인</h1>
+    <div class="form-row">
+      <label>비밀번호</label>
+      <input type="password" id="admin-password" placeholder="비밀번호 입력" />
+    </div>
+    <button id="login-btn" class="btn btn-primary" style="width:100%">로그인</button>
+    <p id="login-error" style="color:#c64545; font-size:13px; margin-top:10px; min-height:18px;"></p>
+  </div>
+
+  <div id="dashboard" class="admin-wrap" style="display:none;">
+    <div class="admin-stats" id="admin-stats"></div>
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="contacts">문의</button>
+      <button class="admin-tab" data-tab="orders">주문</button>
+      <button class="admin-tab" data-tab="subscribers">구독자</button>
+      <button class="admin-tab" data-tab="programs">프로그램</button>
+      <button class="admin-tab" data-tab="settings">설정</button>
+    </div>
+    <button class="btn btn-secondary admin-refresh" id="refresh-btn">새로고침</button>
+
+    <div id="panel-contacts" class="admin-panel active"></div>
+    <div id="panel-orders" class="admin-panel"></div>
+    <div id="panel-subscribers" class="admin-panel"></div>
+    <div id="panel-programs" class="admin-panel"></div>
+    <div id="panel-settings" class="admin-panel">
+      <h3 style="font-family:Cormorant Garamond,serif;font-size:22px;font-weight:400;letter-spacing:-0.3px;color:var(--ink);margin-bottom:16px;">개인 설정</h3>
+
+      <div class="admin-card" style="background:var(--surface-card);border:1px solid var(--hairline);border-radius:12px;padding:20px;margin-bottom:20px;">
+        <h4 style="font-size:16px;font-weight:500;color:var(--ink);margin-bottom:12px;">비밀번호 변경</h4>
+        <div class="form-row">
+          <label>현재 비밀번호</label>
+          <input type="password" id="cur-pw" />
+        </div>
+        <div class="form-row">
+          <label>새 비밀번호</label>
+          <input type="password" id="new-pw" />
+        </div>
+        <div class="form-row">
+          <label>새 비밀번호 확인</label>
+          <input type="password" id="new-pw2" />
+        </div>
+        <button id="change-pw-btn" class="btn btn-primary">변경</button>
+        <p id="pw-status" style="font-size:13px;margin-top:10px;min-height:18px;"></p>
+      </div>
+
+      <div class="admin-card" style="background:var(--surface-card);border:1px solid var(--hairline);border-radius:12px;padding:20px;margin-bottom:20px;">
+        <h4 style="font-size:16px;font-weight:500;color:var(--ink);margin-bottom:12px;">링크 복사</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary copy-link" data-link="http://localhost/festival-site/index.html">사이트 링크 복사</button>
+          <button class="btn btn-secondary copy-link" data-link="http://localhost/festival-site/admin.html">관리자 링크 복사</button>
+          <button class="btn btn-secondary copy-link" data-link="https://hemvjkcnygxmxeetrwoi.supabase.co">Supabase URL 복사</button>
+        </div>
+        <p id="copy-status" style="font-size:13px;margin-top:10px;min-height:18px;"></p>
+      </div>
+
+      <div class="admin-card" style="background:var(--surface-card);border:1px solid var(--hairline);border-radius:12px;padding:20px;margin-bottom:20px;">
+        <h4 style="font-size:16px;font-weight:500;color:var(--ink);margin-bottom:12px;">데이터 내보내기 (CSV)</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="export-contacts" class="btn btn-secondary">문의 CSV</button>
+          <button id="export-orders" class="btn btn-secondary">주문 CSV</button>
+          <button id="export-subscribers" class="btn btn-secondary">구독자 CSV</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://hemvjkcnygxmxeetrwoi.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_gnImXdkgp-uBWMXZYMLvlQ_cu8DMyyW";
+    const DEFAULT_ADMIN_PASSWORD = "spring2026";
+    function getAdminPassword() {
+      return localStorage.getItem("admin_password") || DEFAULT_ADMIN_PASSWORD;
+    }
+    const sb = (window.supabase && window.supabase.createClient)
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+    if (!sb) {
+      console.error("Supabase library failed to load");
+    }
+
+    const loginScreen = document.getElementById("login-screen");
+    const dashboard = document.getElementById("dashboard");
+    const loginBtn = document.getElementById("login-btn");
+    const loginError = document.getElementById("login-error");
+
+    loginBtn.addEventListener("click", () => {
+      const pw = document.getElementById("admin-password").value;
+      if (pw === getAdminPassword()) {
+        try {
+          loginScreen.style.display = "none";
+          dashboard.style.display = "block";
+          if (!sb) {
+            document.getElementById("admin-stats").innerHTML = "<p class='admin-empty'>Supabase 라이브러리 로드 실패. 네트워크를 확인하세요.</p>";
+            return;
+          }
+          loadAll();
+        } catch (err) {
+          alert("오류: " + (err && err.message ? err.message : err));
+          loginScreen.style.display = "block";
+          dashboard.style.display = "none";
+        }
+      } else {
+        loginError.textContent = "비밀번호가 올바르지 않습니다.";
+      }
+    });
+    document.getElementById("admin-password").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") loginBtn.click();
+    });
+
+    // Tabs
+    document.querySelectorAll(".admin-tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".admin-tab").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const tab = btn.dataset.tab;
+        document.querySelectorAll(".admin-panel").forEach((p) => p.classList.remove("active"));
+        document.getElementById("panel-" + tab).classList.add("active");
+      });
+    });
+
+    document.getElementById("refresh-btn").addEventListener("click", loadAll);
+
+    // Password change
+    document.getElementById("change-pw-btn").addEventListener("click", () => {
+      const cur = document.getElementById("cur-pw").value;
+      const nw = document.getElementById("new-pw").value;
+      const nw2 = document.getElementById("new-pw2").value;
+      const status = document.getElementById("pw-status");
+      if (cur !== getAdminPassword()) {
+        status.textContent = "현재 비밀번호가 올바르지 않습니다.";
+        status.style.color = "#c64545";
+        return;
+      }
+      if (!nw || nw.length < 4) {
+        status.textContent = "새 비밀번호는 4자 이상이어야 합니다.";
+        status.style.color = "#c64545";
+        return;
+      }
+      if (nw !== nw2) {
+        status.textContent = "새 비밀번호가 일치하지 않습니다.";
+        status.style.color = "#c64545";
+        return;
+      }
+      localStorage.setItem("admin_password", nw);
+      status.textContent = "비밀번호가 변경되었습니다.";
+      status.style.color = "#5db872";
+      document.getElementById("cur-pw").value = "";
+      document.getElementById("new-pw").value = "";
+      document.getElementById("new-pw2").value = "";
+    });
+
+    // Link copy
+    document.querySelectorAll(".copy-link").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const link = btn.dataset.link;
+        const status = document.getElementById("copy-status");
+        try {
+          await navigator.clipboard.writeText(link);
+          status.textContent = "복사됨: " + link;
+          status.style.color = "#5db872";
+        } catch (e) {
+          status.textContent = "복사 실패. 수동으로 복사하세요: " + link;
+          status.style.color = "#c64545";
+        }
+      });
+    });
+
+    // CSV export helpers
+    function downloadCSV(filename, rows) {
+      if (!rows || !rows.length) { alert("데이터가 없습니다."); return; }
+      const headers = Object.keys(rows[0]);
+      const csv = [headers.join(",")]
+        .concat(rows.map((r) => headers.map((h) => `"${String(r[h] == null ? "" : r[h]).replace(/"/g, '""')}"`).join(",")))
+        .join("\n");
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById("export-contacts").addEventListener("click", async () => {
+      const { data } = await sb.from("contacts").select("*").order("created_at", { ascending: false });
+      downloadCSV("contacts.csv", data);
+    });
+    document.getElementById("export-orders").addEventListener("click", async () => {
+      const { data } = await sb.from("ticket_orders").select("*, ticket_types(name)").order("created_at", { ascending: false });
+      const flat = (data || []).map((o) => ({
+        id: o.id,
+        ticket: o.ticket_types?.name,
+        buyer_name: o.buyer_name,
+        buyer_email: o.buyer_email,
+        buyer_phone: o.buyer_phone,
+        buyer_address: o.buyer_address,
+        quantity: o.quantity,
+        total_amount: o.total_amount,
+        payment_method: o.payment_method,
+        status: o.status,
+        created_at: o.created_at,
+      }));
+      downloadCSV("orders.csv", flat);
+    });
+    document.getElementById("export-subscribers").addEventListener("click", async () => {
+      const { data } = await sb.from("subscribers").select("*").order("created_at", { ascending: false });
+      downloadCSV("subscribers.csv", data);
+    });
+
+    async function loadAll() {
+      await Promise.all([loadContacts(), loadOrders(), loadSubscribers(), loadPrograms()]);
+      await loadStats();
+    }
+
+    async function loadStats() {
+      const [c, o, s] = await Promise.all([
+        sb.from("contacts").select("id", { count: "exact", head: true }),
+        sb.from("ticket_orders").select("id", { count: "exact", head: true }),
+        sb.from("subscribers").select("id", { count: "exact", head: true }),
+      ]);
+      document.getElementById("admin-stats").innerHTML = `
+        <div class="admin-stat"><div class="n">${c.count || 0}</div><div class="l">문의</div></div>
+        <div class="admin-stat"><div class="n">${o.count || 0}</div><div class="l">주문</div></div>
+        <div class="admin-stat"><div class="n">${s.count || 0}</div><div class="l">구독자</div></div>
+      `;
+    }
+
+    async function loadContacts() {
+      const { data, error } = await sb.from("contacts").select("*").order("created_at", { ascending: false });
+      const el = document.getElementById("panel-contacts");
+      if (error) { el.innerHTML = `<p class="admin-empty">오류: ${error.message}</p>`; return; }
+      if (!data || !data.length) { el.innerHTML = `<p class="admin-empty">문의가 없습니다.</p>`; return; }
+      el.innerHTML = `
+        <table class="admin-table">
+          <thead><tr><th>이름</th><th>이메일</th><th>메시지</th><th>상태</th><th>일시</th></tr></thead>
+          <tbody>
+            ${data.map((c) => `
+              <tr>
+                <td>${esc(c.name)}</td>
+                <td>${esc(c.email)}</td>
+                <td>${esc(c.message)}</td>
+                <td>
+                  <select class="status-select" data-id="${c.id}">
+                    ${["new","read","replied","archived"].map((s) => `<option value="${s}" ${c.status===s?"selected":""}>${s}</option>`).join("")}
+                  </select>
+                </td>
+                <td>${new Date(c.created_at).toLocaleString("ko-KR")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+      el.querySelectorAll(".status-select").forEach((sel) => {
+        sel.addEventListener("change", async () => {
+          await sb.from("contacts").update({ status: sel.value }).eq("id", sel.dataset.id);
+        });
+      });
+    }
+
+    async function loadOrders() {
+      const { data, error } = await sb
+        .from("ticket_orders")
+        .select("*, ticket_types(name, price)")
+        .order("created_at", { ascending: false });
+      const el = document.getElementById("panel-orders");
+      if (error) { el.innerHTML = `<p class="admin-empty">오류: ${error.message}</p>`; return; }
+      if (!data || !data.length) { el.innerHTML = `<p class="admin-empty">주문이 없습니다.</p>`; return; }
+      el.innerHTML = `
+        <table class="admin-table">
+          <thead><tr><th>주문ID</th><th>티켓</th><th>구매자</th><th>연락처</th><th>주소</th><th>수량</th><th>금액</th><th>결제</th><th>상태</th><th>일시</th></tr></thead>
+          <tbody>
+            ${data.map((o) => `
+              <tr>
+                <td>${o.id.slice(0,8)}</td>
+                <td>${esc(o.ticket_types?.name || "-")}</td>
+                <td>${esc(o.buyer_name)}<br/><small>${esc(o.buyer_email)}</small></td>
+                <td>${esc(o.buyer_phone || "-")}</td>
+                <td>${esc(o.buyer_address || "-")}</td>
+                <td>${o.quantity}</td>
+                <td>₩${Number(o.total_amount).toLocaleString("ko-KR")}</td>
+                <td>${esc(o.payment_method || "-")}</td>
+                <td>${esc(o.status)}</td>
+                <td>${new Date(o.created_at).toLocaleString("ko-KR")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function loadSubscribers() {
+      const { data, error } = await sb.from("subscribers").select("*").order("created_at", { ascending: false });
+      const el = document.getElementById("panel-subscribers");
+      if (error) { el.innerHTML = `<p class="admin-empty">오류: ${error.message}</p>`; return; }
+      if (!data || !data.length) { el.innerHTML = `<p class="admin-empty">구독자가 없습니다.</p>`; return; }
+      el.innerHTML = `
+        <table class="admin-table">
+          <thead><tr><th>이메일</th><th>등록일</th></tr></thead>
+          <tbody>
+            ${data.map((s) => `<tr><td>${esc(s.email)}</td><td>${new Date(s.created_at).toLocaleString("ko-KR")}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function loadPrograms() {
+      const { data, error } = await sb.from("programs").select("*, events(name)").order("sort_order");
+      const el = document.getElementById("panel-programs");
+      if (error) { el.innerHTML = `<p class="admin-empty">오류: ${error.message}</p>`; return; }
+      if (!data || !data.length) { el.innerHTML = `<p class="admin-empty">프로그램이 없습니다.</p>`; return; }
+      el.innerHTML = `
+        <table class="admin-table">
+          <thead><tr><th>제목</th><th>아이콘</th><th>날짜</th><th>시간</th><th>정원</th></tr></thead>
+          <tbody>
+            ${data.map((p) => `
+              <tr>
+                <td>${esc(p.title)}<br/><small>${esc(p.description || "")}</small></td>
+                <td>${esc(p.icon || "")}</td>
+                <td>${p.program_date || "-"}</td>
+                <td>${p.start_time || "-"} ~ ${p.end_time || "-"}</td>
+                <td>${p.capacity || "-"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
+    }
+  </script>
+</body>
+</html>
